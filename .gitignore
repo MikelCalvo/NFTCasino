@@ -1,0 +1,33 @@
+# Dependencies
+node_modules
+**/**/node_modules
+
+# coverage
+*/**/coverage
+*/**/coverageEnv
+*/**/coverage.json
+*/**/allFiredEvents
+*/**/scTopics
+
+# lerna
+lerna-debug.log
+
+# build artifacts
+# Ignore only for first level to select just the contract build directories
+*/*/abi
+*/*/dist
+*/*/cache
+*/*/artifacts
+*/*/build
+*/**/dist
+*/**/build
+# yarn
+yarn-error.log
+*/**/.env
+
+# Ignore package-lock files (only use yarn.lock)
+package-lock.json
+
+# Misc
+.DS_Store
+.cache

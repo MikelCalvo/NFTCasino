@@ -22,7 +22,8 @@ beforeEach(async () => {
         })
         .send({
             from: accounts[0],
-            gas: "1000000"
+            gas: "1000000",
+            gasPrice: '5000000000'
         });
 });
 
@@ -44,7 +45,8 @@ describe("NFTCasino", () => {
         /** Set a status */
         await nftCasino.methods.setStatus(status).send({
             from: accounts[0],
-            gas: "1000000"
+            gas: "1000000",
+            gasPrice: '5000000000'
         });
 
         /** Check that the status has been saved */

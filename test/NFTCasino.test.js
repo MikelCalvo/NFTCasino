@@ -1,57 +1,24 @@
-const assert = require("assert");
-const ganache = require("ganache-cli");
-const Web3 = require("web3");
-const web3 = new Web3(ganache.provider());
-const {
-    interface,
-    bytecode
-} = require("../compile");
+const { expect } = require("chai");
 
-let accounts;
 let nftCasino;
+let accounts;
 
 beforeEach(async () => {
-    // Get the account list
-    accounts = await web3.eth.getAccounts();
+    console.log("Getting accounts");
+    accounts = await ethers.getSigners();
+    console.log("Accounts found, owner will be: " + accounts[0].address);
 
-    // Use the first account to deploy the contract
-    nftCasino = await new web3.eth.Contract(JSON.parse(interface))
-        .deploy({
-            data: bytecode,
-            arguments: ["Deployed"]
-        })
-        .send({
-            from: accounts[0],
-            gas: "1000000",
-            gasPrice: '5000000000'
-        });
+    console.log("Preparing to deploy");
+    let NFTCasino = await ethers.getContractFactory("NFTCasino");
+    console.log("Deploying contract...");
+    nftCasino = await NFTCasino.deploy();
+    
+    await nftCasino.deployed();
 });
 
 describe("NFTCasino", () => {
-    it("Contract Deployment", () => {
-        assert.ok(nftCasino.options.address);
-    });
 
-    it("Contains the default status", async () => {
-
-        /** Check that it contains the status given by the constructor */
-        assert.equal(await nftCasino.methods.status().call(), "Deployed");
-    });
-
-    it("Can update the status", async () => {
-
-        var status = "Testing...";
-
-        /** Set a status */
-        await nftCasino.methods.setStatus(status).send({
-            from: accounts[0],
-            gas: "1000000",
-            gasPrice: '5000000000'
-        });
-
-        /** Check that the status has been saved */
-        const savedStatus = await nftCasino.methods.status().call();
-
-        assert.equal(savedStatus, status);
+    it("Contract Deployment", async function() {
+        expect(await nftCasino.getContractOwner()).be.equal(accounts[0].address);
     });
 });

@@ -15,9 +15,12 @@ Logic works as follows:
 
 ## :scroll: TODO:
 - [x] Create the base functions for the contract
-- [ ] Generate the random winner with a Chainlink Oracle
+- [ ] Create events
+- [ ] Create the missing test cases
+- [ ] Generate the random winner with an Oracle
 - [ ] Allow the withdrawal of accidental NFT deposits
 - [ ] Create a deadline for the abandoned NFTs to be withdrawn, if the deadline is reached the NFTs become withdrawable by the contract owner
+- [ ] Make the contract upgradeable
 - [ ] Allow the contract to automatically swap half of ETH profits for LINK if the contract is running low, so we can call the oracle again in the future
 - [ ] Allow the loser to mint an NFT to remember the loss
 - [ ] Allow external users to bet ETH on the output of a match

@@ -11,7 +11,14 @@ contract NFTCasino {
     mapping (uint256 => NFTDeposit) nftDeposits;
     mapping (uint256 => NFTOffer) nftOffers;
 
-    uint contractProfits;
+    /** General Analytics */
+    uint256 public currrentDepositsCount = 0;
+    uint256 private totalDepositsCount = 0;
+    uint256 public currentOffersCount = 0;
+    uint256 private totalOffersCount = 0;
+    uint256 private totalBetsCount = 0;
+    uint256 private pendingNFTsToWithdrawCount = 0;
+    uint256 private totalContractProfits = 0;
 
     /** Contract deployer will be the owner who can withdraw the profits */
     constructor() {
@@ -38,8 +45,8 @@ contract NFTCasino {
     }
 
     /** Create a deposit */
-    function createDeposit(address contractAddress, uint256 tokenId) external{
-        IERC721 nftContractInstance = IERC721(contractAddress);
+    function createDeposit(address nftContract, uint256 tokenId) external returns (uint256 _depositID) {
+        IERC721 nftContractInstance = IERC721(nftContract);
 
         // Security checks
         require(nftContractInstance.ownerOf(tokenId) == msg.sender, "Only the NFT owner can create a deposit");
@@ -49,14 +56,18 @@ contract NFTCasino {
         nftContractInstance.safeTransferFrom(msg.sender, address(this), tokenId);
         
         // NFTDeposit creation
-        uint256 depositID = uint256(keccak256(abi.encode(msg.sender, tokenId, block.timestamp, block.difficulty)));
+        uint256 depositID = uint256(keccak256(abi.encode(nftContract, tokenId)));
         nftDeposits[depositID] = NFTDeposit({
-            nftContract: address(contractAddress),
+            nftContract: address(nftContract),
             tokenId: tokenId,
             owner: msg.sender,
             matchPlayed: false,
             newOwner: address(0)
         });
+
+        currrentDepositsCount += 1;
+        totalDepositsCount += 1;
+        return _depositID;
     }
 
     /** Cancel a deposit & withdraw the NFT */
@@ -73,10 +84,22 @@ contract NFTCasino {
 
         // NFTDeposit object removal
         delete nftDeposits[depositID];
+        currrentDepositsCount -= 1;
+    }
+
+    /** Get the info about a deposit */
+    function getDepositInfo(uint256 depositID) external view returns (address, uint256, address, bool, address) {
+        NFTDeposit storage details = nftDeposits[depositID];
+        return (details.nftContract, details.tokenId, details.owner, details.matchPlayed, details.newOwner);
+    }
+
+    /** Get deposit ID */
+    function getDepositID(address depositedNFTContract, uint256 depositedTokenId) external pure returns (uint256) {
+        return uint256(keccak256(abi.encode(depositedNFTContract, depositedTokenId)));
     }
 
     /** Create an offer */
-    function createOffer(address nftContract, uint256 tokenId, uint256 toDepositID) external {
+    function createOffer(address nftContract, uint256 tokenId, uint256 toDepositID) external returns (uint256 _offerID) {
         IERC721 nftContractInstance = IERC721(nftContract);
 
         // Security checks
@@ -84,10 +107,10 @@ contract NFTCasino {
         require(nftContractInstance.getApproved(tokenId) == address(this) || nftContractInstance.isApprovedForAll(msg.sender, address(this)), "NFT must be approved to be offered");
 
         // NFT transfer from owner to contract
-        nftContractInstance.safeTransferFrom(msg.sender, address(this), tokenId, abi.encode("NFTCASINO.ETH TRANSFER"));
+        nftContractInstance.safeTransferFrom(msg.sender, address(this), tokenId);
 
         // NFTOffer creation
-        uint256 offerID = uint256(keccak256(abi.encode(msg.sender, tokenId, block.timestamp, block.difficulty)));
+        uint256 offerID = uint256(keccak256(abi.encode(nftContract, tokenId)));
         nftOffers[offerID] = NFTOffer({
             nftContract: nftContract,
             tokenId: tokenId,
@@ -96,6 +119,10 @@ contract NFTCasino {
             matchPlayed: false,
             newOwner: address(0)
         });
+
+        currentOffersCount += 1;
+        totalOffersCount += 1;
+        return _offerID;
     }
 
     /** Cancel an offer & withdraw the NFT */
@@ -112,6 +139,18 @@ contract NFTCasino {
 
         // NFTOffer object removal
         delete nftOffers[offerID];
+        currentOffersCount -= 1;
+    }
+
+    /** Get the info about an offer */
+    function getOfferInfo(uint256 offerID) external view returns (address, uint256, address, uint256, bool, address) {
+        NFTOffer storage details = nftOffers[offerID];
+        return (details.nftContract, details.tokenId, details.owner, details.toDepositID, details.matchPlayed, details.newOwner);
+    }
+
+    /** Get offer ID */
+    function getOfferID(address offeredNFTContract, uint256 offeredTokenId) external pure returns (uint256) {
+        return uint256(keccak256(abi.encode(offeredNFTContract, offeredTokenId)));
     }
 
     /** Accept an offer & randomly select a winner */
@@ -123,8 +162,13 @@ contract NFTCasino {
         require(depositDetails.matchPlayed == false, "NFT already gambled");
         require(nftDeposits[depositID].owner == msg.sender, "Only the owner can accept the offer");
 
-        // TODO: Random Winner Selection using Chainlink oracles
+        // TODO: Random Winner Selection using Oracles
+        uint(blockhash(block.number-1))%2 == 0 ? depositDetails.newOwner = offerDetails.owner : offerDetails.newOwner = depositDetails.owner;
+        depositDetails.matchPlayed = true;
+        offerDetails.matchPlayed = true;
 
+        totalBetsCount += 1;
+        pendingNFTsToWithdrawCount += 2;
     }
 
     /** Withdraw both NFTs & pay the fee to the contract owner */
@@ -143,6 +187,9 @@ contract NFTCasino {
         // NFTs transfer from contract to owner
         depositNFTContractInstance.safeTransferFrom(address(this), msg.sender, depositDetails.tokenId);
         offerNFTContractInstance.safeTransferFrom(address(this), msg.sender, offerDetails.tokenId);
+
+        pendingNFTsToWithdrawCount -= 2;
+        totalContractProfits += msg.value;
     }
 
     /** Allow the contract owner to withdraw all the ETH profits */
@@ -171,5 +218,10 @@ contract NFTCasino {
     /** Get the contract owner address */
     function getContractOwner() public view returns (address) {
         return contractOwner;
+    }
+
+    /** General data about the contract */
+    function getAnalytics() public view onlyContractOwner returns (uint256, uint256, uint256, uint256, uint256, uint256, uint256) {
+        return (currrentDepositsCount, totalDepositsCount, currentOffersCount, totalOffersCount, totalBetsCount, pendingNFTsToWithdrawCount, totalContractProfits);
     }
 }
